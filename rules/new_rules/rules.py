@@ -1,70 +1,71 @@
-RULES = {
-    'rule01W': {
-        'context': "md:EntityDescriptor",
-        'test_rule': '''
-            normalize-space(text()) = 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent' 
-            or normalize-space(text()) = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
-            or normalize-space(text()) = ''
-        ''',
-        'message': "@entityID values should be a URI starting with http://, https:// or urn:"
-    },
-
-    'rule02W': {
-        'context': "md:NameIDFormat",
-        'test_rule': "starts-with(@entityID,'https://') or starts-with(@entityID,'http://') or starts-with(@entityID,'urn:')",
-        'message': '''
-            This NameIDFormat may not be supported. Supported values for NameIDFormat are:
-                urn:oasis:names:tc:SAML:2.0:nameid-format:persistent
-                urn:oasis:names:tc:SAML:2.0:nameid-format:transient
-        '''
-    },
-
-    'rule03W': {
-        'context': "//md:IDPSSODescriptor",
-        'test_rule': "md:NameIDFormat[text() != '']",
-        'message': "Each IDPSSODescriptor should contain NameIDFormat with one or more values",
-    },
-
-    'rule23E': {
-        'context': "alg:DigestMethod",
-        'test_rule': '''
-            normalize-space(@Algorithm)='http://www.w3.org/2001/04/xmlenc#sha256'
-            or normalize-space(@alg:Algorithm)='http://www.w3.org/2001/04/xmlenc#sha256'
-            or normalize-space(@Algorithm)='http://www.w3.org/2000/09/xmldsig#sha1'
-            or normalize-space(@alg:Algorithm)='http://www.w3.org/2000/09/xmldsig#sha1'
-            or normalize-space(@Algorithm)='http://www.w3.org/2001/04/xmlenc#sha512'
-            or normalize-space(@alg:Algorithm)='http://www.w3.org/2001/04/xmlenc#sha512'
-            or normalize-space(@Algorithm)='http://www.w3.org/2001/04/xmlenc#ripemd160'
-            or normalize-space(@alg:Algorithm)='http://www.w3.org/2001/04/xmlenc#ripemd160'
-        ''',
-        'message': '''
-            alg:DigestMethod element may only contain following @Algorithm values:
-                http://www.w3.org/2000/09/xmldsig#sha1
-                http://www.w3.org/2001/04/xmlenc#sha256
-                http://www.w3.org/2001/04/xmlenc#sha512
-                http://www.w3.org/2001/04/xmlenc#ripemd160
-        ''',
-        'severity': "Error"
-    },
-}
+import xmltodict
+from collections import OrderedDict
 
 
-def get_rule(id, context, test_rule, message, severity='Warning'):
-    template = '''
-<?xml version="1.0" encoding="utf-8"?>
-<iso:pattern id="{id}" xmlns:iso="http://purl.oclc.org/dsdl/schematron" >
-  <iso:rule context="{context}">
-    <iso:assert test="{test_rule}">
-"{id}": {{ "Severity": "{severity}",
-         "Message": "{message}",
-    </iso:assert>
-  </iso:rule>
-</iso:pattern>
-'''
+class InputData():
+    def __init__(self, xml_file):
+        with open(xml_file) as fd:
+            self._doc = xmltodict.parse(fd.read())
 
-    return template.format_map(locals())
+    def get_element(self, name, root=None):
+        if root is None:
+            root = self._doc
+
+        for element_name in root:
+            if element_name == name:
+                return root[element_name]
+
+            if isinstance(root[element_name], OrderedDict):
+                result = self.get_element(name, root[element_name])
+
+                if result is not None:
+                    return result
+
+        return None
 
 
-if __name__ == "__main__":
-    for id in RULES:
-        print(get_rule(id, **RULES[id]))
+def rule02(data):
+    try:
+        assert data.get_element('md:NameIDFormat') in ['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent', 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient', '']
+    except AssertionError:
+        return 'This NameIDFormat may not be supported. Supported values for NameIDFormat are:\n    urn:oasis:names:tc:SAML:2.0:nameid-format:persistent\n    urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
+
+    return 'ok'
+
+
+def rule01(data):
+    def starts_with(data, pattern):
+        for p in pattern:
+            if data.startswith(p):
+                return True
+
+        return False
+
+    try:
+        assert starts_with(data.get_element('md:EntityDescriptor')['@entityID'], ['urn:', 'http://', 'https://'])
+    except AssertionError:
+        return '@entityID values should be a URI starting with http://, https:// or urn:'
+
+    return 'ok'
+
+
+def starts_with(data, pattern, message):
+    if not isinstance(pattern, list):
+        pattern = [pattern]
+
+    for p in pattern:
+        if data.startswith(p):
+            return 'ok'
+
+    return message
+
+
+print(rule01(InputData('../../testdata/rule01W_OK_1.xml')))
+print(rule02(InputData('../../testdata/rule02W_fail.xml')))
+
+print(starts_with(
+    InputData('../../testdata/rule02W_fail.xml').get_element('md:EntityDescriptor')['@entityID'],
+    ['urn:', 'http://', 'https://'],
+    '@entityID values should be a URI starting with http://, https:// or urn:'
+))
+
