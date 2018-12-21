@@ -1,5 +1,26 @@
 from helpers import *
 
+
+print(not_empty(
+    get_data('../../testdata/rule11W_valid.xml').get_element('SPSSODescriptor').get_element('alg:DigestMethod', ignore_namespaces=False),
+    'IDPSSODescriptor/SPSSODescriptor must contain alg:DigestMethod'
+))
+
+exit()
+
+print(contain_attr(
+    get_data('../../testdata/rule11W_valid.xml').get_element('SPSSODescriptor').get_element('AssertionConsumerService'),
+    '@Binding',
+    'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+    'SPSSODescriptor should contain an AssertionConsumerService with Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"'
+))
+
+print(not_contain(
+    get_data('../../testdata/rule10W_fail.xml').get_element('IDPSSODescriptor'),
+    'saml:Attribute',
+    'IDPSSODescriptor contains saml2:Attribute elements; but some implementations may not understand this.'
+))
+
 print(starts_with(
     get_data('../../testdata/rule01W_OK_1.xml').get_element('EntityDescriptor')['@entityID'],
     ['urn:', 'http://', 'https://'],
@@ -67,3 +88,4 @@ print(in_range(
     ],
     'SPSSODescriptor should contain an AssertionConsumerService with Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"'
 ))
+

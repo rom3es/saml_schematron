@@ -1,6 +1,6 @@
 import re
 import xmltodict
-from input_data import InputData
+from .input_data import InputData
 
 
 def get_data(path):
@@ -47,5 +47,22 @@ def contain(data, attr, value, element, message):
 
                 if element_name == element:
                     return 'ok'
+
+    return message
+
+
+def not_contain(data, attr, message):
+    if len(data.get_element(attr, ignore_namespaces=False)) != 0:
+        return message
+
+    return 'ok'
+
+
+def contain_attr(data, attr, value, message):
+    for d in data:
+        print(d)
+
+        if d[attr] == value:
+            return 'ok'
 
     return message

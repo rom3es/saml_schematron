@@ -6,7 +6,7 @@ class InputData():
     def __init__(self, data):
         self._doc = data
 
-    def get_element(self, name, root=None):
+    def get_element(self, name, root=None, ignore_namespaces=True, as_list=False):
         if root is None:
             root = self._doc
 
@@ -14,13 +14,19 @@ class InputData():
             return InputData(None)
 
         for element_name in root:
-            raw_element_name = re.sub(r'^\w+:([\s\S]+)', r'\1', element_name)
+            if ignore_namespaces:
+                raw_element_name = re.sub(r'^\w+:([\s\S]+)', r'\1', element_name)
+            else:
+                raw_element_name = element_name
 
             if raw_element_name == name:
-                return InputData(root[element_name])
+                if not isinstance(root[element_name], list) and as_list:
+                    return InputData([root[element_name]])
+                else:
+                    return InputData(root[element_name])
 
             if isinstance(root[element_name], OrderedDict):
-                result = self.get_element(name, root[element_name])
+                result = self.get_element(name, root[element_name], ignore_namespaces=ignore_namespaces, as_list=as_list)
 
                 if len(result) != 0:
                     return result
